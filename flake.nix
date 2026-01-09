@@ -1,19 +1,37 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    poetry2nix = {
+      url = "github:nix-community/poetry2nix";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
-  outputs = { self, flake-utils, nixpkgs }: (flake-utils.lib.eachDefaultSystem (
-    system:
-    let
-      pkgs = nixpkgs.legacyPackages.${system};
-      openconnect-sso = (import ./nix { inherit pkgs; }).openconnect-sso;
-    in
-    {
-      packages = { inherit openconnect-sso; };
-      defaultPackage = openconnect-sso;
-    }
-  ) // {
-      overlay = import ./overlay.nix;
-  });
+  outputs = { self, flake-utils, nixpkgs, ... }@inputs:
+    (inputs.flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        poetry2nix = inputs.poetry2nix.lib.mkPoetry2Nix { inherit pkgs; };
+        openconnect-pkgs = import ./nix {
+          inherit pkgs poetry2nix;
+          sources = null; # make sure we don't mix flakes and Niv
+        };
+      in {
+        packages = rec {
+          inherit (openconnect-pkgs) openconnect-sso;
+
+          default = openconnect-sso;
+        };
+
+        devShells.default = openconnect-pkgs.shell;
+      }) // {
+        overlays = rec {
+          default = openconnect-sso;
+
+          openconnect-sso = import ./overlay.nix;
+        };
+      });
 }

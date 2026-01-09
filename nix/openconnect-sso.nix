@@ -1,33 +1,40 @@
-{ lib
-, openconnect
-, python3
-, python3Packages
-, poetry2nix
-, substituteAll
-, wrapQtAppsHook
-}:
+{ lib, stdenv, openconnect, python3, python3Packages, poetry2nix, qt5
+, wrapQtAppsHook }:
 
 poetry2nix.mkPoetryApplication {
-  src = lib.cleanSource ../.;
-  pyproject = ../pyproject.toml;
-  poetrylock = ../poetry.lock;
+  projectDir = ../.;
   python = python3;
-  buildInputs = [ wrapQtAppsHook ];
-  propagatedBuildInputs = [ openconnect ];
+  checkGroups = [ ];
+  buildInputs = [ python3Packages.setuptools ];
+  nativeBuildInputs = [ wrapQtAppsHook ];
+
+  propagatedBuildInputs = [ openconnect ]
+    ++ lib.optional (stdenv.isLinux) qt5.qtwayland;
 
   dontWrapQtApps = true;
-  makeWrapperArgs = [
-    "\${qtWrapperArgs[@]}"
-  ];
-
-  preferWheels = true;
+  preFixup = ''
+    makeWrapperArgs+=(
+      # Force the app to use QT_PLUGIN_PATH values from wrapper
+      --unset QT_PLUGIN_PATH
+      "''${qtWrapperArgs[@]}"
+      # avoid persistant warning on starup
+      --set QT_STYLE_OVERRIDE Fusion
+    )
+  '';
 
   overrides = [
     poetry2nix.defaultPoetryOverrides
-    (
-      self: super: {
-        inherit (python3Packages) cryptography pyqt6 pyqt6-sip pyqt6-webengine six more-itertools;
-      }
-    )
+    (self: super: {
+      inherit (python3Packages)
+        attrs colorama cryptography keyring lxml more-itertools prompt-toolkit
+        pyotp pyqt5 pyqt5-sip pyqtwebengine pysocks pyxdg requests
+        structlog toml six;
+
+      coverage-enable-subprocess =
+        super.coverage-enable-subprocess.overridePythonAttrs (old: {
+          propagatedBuildInputs = (old.propagatedBuildInputs or [ ])
+            ++ [ self.setuptools ];
+        });
+    })
   ];
 }
