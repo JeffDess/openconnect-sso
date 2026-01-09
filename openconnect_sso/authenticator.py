@@ -2,6 +2,7 @@ import attr
 import requests
 import structlog
 from lxml import etree, objectify
+from requests.exceptions import ReadTimeout, ConnectionError
 
 from openconnect_sso.saml_authenticator import authenticate_in_browser
 
@@ -55,9 +56,15 @@ class Authenticator:
     def _detect_authentication_target_url(self):
         # Follow possible redirects in a GET request
         # Authentication will occur using a POST request on the final URL
-        response = requests.get(self.host.vpn_url)
-        response.raise_for_status()
-        self.host.address = response.url
+        try:
+            response = requests.get(self.host.vpn_url, timeout=2)
+            response.raise_for_status()
+            self.host.address = response.url
+        except (ReadTimeout, ConnectionError) as e:
+            # Some VPN endpoints send headers but never send the body
+            # In this case, just use the original URL (no redirect)
+            logger.debug("GET request timed out, assuming no redirect", error=str(e))
+            self.host.address = self.host.vpn_url
         logger.debug("Auth target url", url=self.host.vpn_url)
 
     def _start_authentication(self):
