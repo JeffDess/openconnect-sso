@@ -3,8 +3,9 @@
 
 let
   inherit (pkgs) python3Packages qt5;
+  openconnect = pkgs.callPackage ./openconnect.nix { };
   openconnect-sso =
-    qt5.callPackage ./openconnect-sso.nix { inherit poetry2nix; };
+    qt5.callPackage ./openconnect-sso.nix { inherit poetry2nix openconnect; };
 
   shell = pkgs.mkShell {
     buildInputs = with pkgs;
