@@ -108,6 +108,7 @@ def create_http_session(proxy, version):
             "X-Transcend-Version": "1",
             "X-Aggregate-Auth": "1",
             "X-Support-HTTP-Auth": "true",
+            "X-CSTP-Protocol": "Copyright (c) 2004, Cisco Systems, Inc.",
             "Content-Type": "application/x-www-form-urlencoded",
             # I know, it is invalid but that’s what Anyconnect sends
         }
